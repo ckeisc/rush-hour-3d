@@ -23,6 +23,67 @@
 <link rel="manifest" href="assets/manifest.json" />
 <script>
 /* ============================================================
+   PWA / STANDALONE DETECTION — runs before any CSS paints.
+   iOS 26 applies a system "Liquid Glass" scroll-edge blur
+   across roughly the top 107pt of installed (standalone) web
+   apps. There is no CSS/JS switch to turn it off, so in PWA
+   mode — and ONLY in PWA mode — we push the top HUD below
+   that band via --pwa-top-extra (see the main stylesheet).
+   In a normal browser tab the extra offset stays 0 and the
+   layout is exactly as before.
+   Detection covers every platform's signal:
+     • (display-mode: standalone / fullscreen) — standard,
+       Android/Chrome + modern iOS
+     • navigator.standalone === true — legacy iOS Safari
+     • android-app:// referrer — Android TWA fallback
+   The result is exposed as html.pwa-standalone (CSS hook),
+   body.pwa-standalone (once body exists), and
+   window.__rhIsPWA for any game code that wants its own
+   PWA-only code path. A display-mode change listener keeps
+   it live if the mode ever changes without a reload.
+   ============================================================ */
+(function(){
+  function isStandalone(){
+    try{
+      if(window.matchMedia){
+        if(window.matchMedia('(display-mode: standalone)').matches) return true;
+        if(window.matchMedia('(display-mode: fullscreen)').matches) return true;
+        if(window.matchMedia('(display-mode: minimal-ui)').matches && window.navigator && window.navigator.standalone===true) return true;
+      }
+      if(window.navigator && window.navigator.standalone===true) return true;
+      if(document.referrer && document.referrer.indexOf('android-app://')===0) return true;
+    }catch(e){}
+    return false;
+  }
+  function apply(){
+    var standalone=isStandalone();
+    try{
+      document.documentElement.classList.toggle('pwa-standalone', standalone);
+      document.documentElement.classList.toggle('pwa-browser', !standalone);
+      if(document.body){
+        document.body.classList.toggle('pwa-standalone', standalone);
+        document.body.classList.toggle('pwa-browser', !standalone);
+      }
+    }catch(e){}
+    window.__rhIsPWA=standalone;
+  }
+  window.__rhIsStandalone=isStandalone;
+  window.__rhApplyPwaMode=apply;
+  apply();
+  if(document.addEventListener) document.addEventListener('DOMContentLoaded', apply);
+  if(window.matchMedia){
+    try{
+      ['(display-mode: standalone)','(display-mode: fullscreen)'].forEach(function(q){
+        var mq=window.matchMedia(q);
+        if(mq.addEventListener) mq.addEventListener('change', apply);
+        else if(mq.addListener) mq.addListener(apply);
+      });
+    }catch(e){}
+  }
+})();
+</script>
+<script>
+/* ============================================================
    DIAGNOSTICS — installed FIRST, before Three.js or any other
    script, in plain ES5 so it runs even on browsers that cannot
    parse the game itself. Any error anywhere on the page shows
@@ -80,7 +141,7 @@ function shaderInfo(){
 }
 function fullText(){
   var si=shaderInfo();
-  return 'RUSH HOUR 3D v16 — ERROR REPORT\nReported at: '+(new Date()).toString()+'\n'
+  return 'RUSH HOUR 3D v17 — ERROR REPORT\nReported at: '+(new Date()).toString()+'\n'
     +deviceInfo()+(si?'\n'+si:'')+'\n\n--- Errors ('+COUNT+') ---\n'
     +(QUEUE.length?QUEUE.join('\n\n'):'(none captured)');
 }
@@ -205,7 +266,7 @@ if(document.addEventListener) document.addEventListener('DOMContentLoaded',wire)
 </script>
 <style>
   #diag-status{
-    position:fixed; top:calc(64px + env(safe-area-inset-top, 0px)); left:50%; transform:translateX(-50%); z-index:2147483000;
+    position:fixed; top:calc(64px + env(safe-area-inset-top, 0px) + var(--pwa-top-extra, 0px)); left:50%; transform:translateX(-50%); z-index:2147483000;
     background:rgba(10,14,26,.9); color:#fff; pointer-events:none; text-align:center;
     font:700 13px/1.35 -apple-system,system-ui,"Segoe UI",sans-serif;
     padding:8px 14px; border-radius:999px; box-shadow:0 4px 16px rgba(0,0,0,.35); max-width:92vw;
@@ -240,7 +301,7 @@ if(document.addEventListener) document.addEventListener('DOMContentLoaded',wire)
   }
   #diag-copied{margin-top:8px; font-size:13px; font-weight:800; min-height:16px; color:#fff;}
   #diag-badge{
-    display:none; position:fixed; top:calc(10px + env(safe-area-inset-top, 0px)); right:10px; z-index:2147483001;
+    display:none; position:fixed; top:calc(10px + env(safe-area-inset-top, 0px) + var(--pwa-top-extra, 0px)); right:10px; z-index:2147483001;
     background:#b00020 !important; color:#fff !important; border:2px solid #fff !important;
     border-radius:999px; font:900 13px -apple-system,system-ui,sans-serif;
     padding:10px 14px; min-height:44px; box-shadow:0 6px 20px rgba(0,0,0,.45); cursor:pointer;
@@ -252,6 +313,14 @@ if(document.addEventListener) document.addEventListener('DOMContentLoaded',wire)
 <title>Rush Hour 3D</title>
 <style>
   :root{
+    /* PWA-only top clearance: 0 in a browser tab. When the
+       early detection script adds html.pwa-standalone, this
+       becomes 68px, so the top HUD's total distance from the
+       physical top is ~10px + safe-area (≈47–59px on modern
+       iPhones) + 68px ≈ 125–137px — safely below the ~107pt
+       iOS 26 Liquid Glass blur band. The band then only ever
+       covers empty sky/scene, never text. */
+    --pwa-top-extra:0px;
     --ink:#f4f6fb;
     --ink-dim:#b9c2d8;
     --plate:rgba(16,20,34,.78);
@@ -270,6 +339,7 @@ if(document.addEventListener) document.addEventListener('DOMContentLoaded',wire)
     --c-par:#ff6fa5;
     --c-moves:#4ade80;
   }
+  html.pwa-standalone{ --pwa-top-extra:68px; }
   @media (prefers-color-scheme: light){
     :root{
       --ink:#1c2338;
@@ -312,7 +382,7 @@ if(document.addEventListener) document.addEventListener('DOMContentLoaded',wire)
      under the status bar or home indicator. In a normal browser
      tab the insets are 0 and the layout is exactly as before. */
   #hud-top{
-    position:fixed; top:calc(10px + env(safe-area-inset-top, 0px)); left:10px; right:10px; z-index:20;
+    position:fixed; top:calc(10px + env(safe-area-inset-top, 0px) + var(--pwa-top-extra, 0px)); left:10px; right:10px; z-index:20;
     display:flex; gap:10px; align-items:stretch; justify-content:center;
     pointer-events:none; flex-wrap:wrap;
   }
@@ -453,14 +523,14 @@ if(document.addEventListener) document.addEventListener('DOMContentLoaded',wire)
   /* ---------- 2D fallback ---------- */
   #board2d{position:fixed; inset:0; display:none; touch-action:none;}
   #mode-banner{
-    display:none; position:fixed; top:calc(82px + env(safe-area-inset-top, 0px)); left:50%; transform:translateX(-50%); z-index:25;
+    display:none; position:fixed; top:calc(82px + env(safe-area-inset-top, 0px) + var(--pwa-top-extra, 0px)); left:50%; transform:translateX(-50%); z-index:25;
     background:#7a4a00; color:#fff; border:1px solid rgba(255,255,255,.35);
     border-radius:999px; padding:8px 16px; font-weight:800; font-size:13.5px;
     box-shadow:0 6px 20px rgba(0,0,0,.35); max-width:94vw; text-align:center; line-height:1.35;
   }
   #mode-banner .tip{display:block; font-weight:700; font-size:12px; color:#ffe1a8;}
   #toast{
-    position:fixed; top:calc(86px + env(safe-area-inset-top, 0px)); left:50%; transform:translateX(-50%) translateY(-8px); z-index:30;
+    position:fixed; top:calc(86px + env(safe-area-inset-top, 0px) + var(--pwa-top-extra, 0px)); left:50%; transform:translateX(-50%) translateY(-8px); z-index:30;
     padding:9px 18px; border-radius:999px; font-weight:900; font-size:14.5px;
     opacity:0; pointer-events:none; transition:opacity .25s, transform .25s; white-space:nowrap;
     max-width:92vw; overflow:hidden; text-overflow:ellipsis;
@@ -507,7 +577,7 @@ if(document.addEventListener) document.addEventListener('DOMContentLoaded',wire)
   @media (max-width:640px){
     .hud-value{font-size:16px;}
     #level-name{max-width:44vw;}
-    #hud-top{gap:6px; top:calc(6px + env(safe-area-inset-top, 0px)); left:6px; right:6px;}
+    #hud-top{gap:6px; top:calc(6px + env(safe-area-inset-top, 0px) + var(--pwa-top-extra, 0px)); left:6px; right:6px;}
     #hud-bottom{gap:6px; bottom:calc(6px + env(safe-area-inset-bottom, 0px)); left:6px; right:6px;}
     .hud-box{padding:6px 9px;}
     #info-bar{padding:6px 12px;}
@@ -515,7 +585,7 @@ if(document.addEventListener) document.addEventListener('DOMContentLoaded',wire)
     #info-bar .info-line1{font-size:14px;}
     #info-bar .info-line2{font-size:12.5px;}
     #info-bar #level-name{max-width:58vw;}
-    #toast{top:calc(120px + env(safe-area-inset-top, 0px));}
+    #toast{top:calc(120px + env(safe-area-inset-top, 0px) + var(--pwa-top-extra, 0px));}
     button{font-size:12.5px; padding:7px 10px;}
     /* menu becomes a bottom sheet spanning the screen width */
     #menu-panel{left:6px; right:6px; width:auto; bottom:calc(64px + env(safe-area-inset-bottom, 0px)); max-height:calc(100dvh - 150px);}
@@ -620,7 +690,7 @@ if(document.addEventListener) document.addEventListener('DOMContentLoaded',wire)
     <button id="btn-sound" class="icon-btn" title="Sound on/off" aria-label="Toggle sound"><span class="btn-ico" aria-hidden="true">🔊</span><span class="btn-label">Sound</span></button>
     <button id="btn-herohl" class="icon-btn" title="Hero glow on/off" aria-label="Toggle hero glow" aria-pressed="true"><span class="btn-ico" aria-hidden="true">💚</span><span class="btn-label">Hero glow</span></button>
   </div>
-  <div class="build-marker">Rush Hour 3D · v16 · updated 2026-11-26</div>
+  <div class="build-marker">Rush Hour 3D · v17 · updated 2026-11-26</div>
 </div>
 <script>
 /* Secondary menu open/close — plain DOM, independent of which
