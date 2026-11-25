@@ -4,6 +4,23 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="color-scheme" content="light dark" />
+<!-- PWA — installable app packaging. The web app manifest lives
+     in assets/ (only index.html + assets/ are served), so its
+     icon paths are relative to assets/ and its start_url/scope
+     step up one level ("../") to the page itself; that keeps the
+     manifest correct both on the Muse host and on GitHub Pages.
+     iOS Safari has no automatic install prompt: the Apple meta
+     tags + apple-touch-icon below are what Share → Add to Home
+     Screen uses for the standalone fullscreen launch. -->
+<meta name="description" content="Slide the cars, free the red hero car, and escape the traffic jam — a 3D sliding-block puzzle with 20 levels." />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#87b5d9" />
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1a2340" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Rush Hour 3D" />
+<meta name="application-name" content="Rush Hour 3D" />
+<link rel="manifest" href="assets/manifest.json" />
 <script>
 /* ============================================================
    DIAGNOSTICS — installed FIRST, before Three.js or any other
@@ -63,7 +80,7 @@ function shaderInfo(){
 }
 function fullText(){
   var si=shaderInfo();
-  return 'RUSH HOUR 3D v13 — ERROR REPORT\nReported at: '+(new Date()).toString()+'\n'
+  return 'RUSH HOUR 3D v14 — ERROR REPORT\nReported at: '+(new Date()).toString()+'\n'
     +deviceInfo()+(si?'\n'+si:'')+'\n\n--- Errors ('+COUNT+') ---\n'
     +(QUEUE.length?QUEUE.join('\n\n'):'(none captured)');
 }
@@ -188,14 +205,14 @@ if(document.addEventListener) document.addEventListener('DOMContentLoaded',wire)
 </script>
 <style>
   #diag-status{
-    position:fixed; top:64px; left:50%; transform:translateX(-50%); z-index:2147483000;
+    position:fixed; top:calc(64px + env(safe-area-inset-top, 0px)); left:50%; transform:translateX(-50%); z-index:2147483000;
     background:rgba(10,14,26,.9); color:#fff; pointer-events:none; text-align:center;
     font:700 13px/1.35 -apple-system,system-ui,"Segoe UI",sans-serif;
     padding:8px 14px; border-radius:999px; box-shadow:0 4px 16px rgba(0,0,0,.35); max-width:92vw;
   }
   #diag-panel{
     display:none; position:fixed; top:0; left:0; right:0; z-index:2147483001;
-    background:#b00020; color:#fff; padding:12px 12px 14px; max-height:76vh; overflow-y:auto;
+    background:#b00020; color:#fff; padding:calc(12px + env(safe-area-inset-top, 0px)) 12px 14px; max-height:76vh; overflow-y:auto;
     -webkit-overflow-scrolling:touch; touch-action:auto;
     font-family:-apple-system,system-ui,"Segoe UI",sans-serif;
     box-shadow:0 10px 34px rgba(0,0,0,.5); border-bottom:4px solid #7a0016;
@@ -223,13 +240,15 @@ if(document.addEventListener) document.addEventListener('DOMContentLoaded',wire)
   }
   #diag-copied{margin-top:8px; font-size:13px; font-weight:800; min-height:16px; color:#fff;}
   #diag-badge{
-    display:none; position:fixed; top:10px; right:10px; z-index:2147483001;
+    display:none; position:fixed; top:calc(10px + env(safe-area-inset-top, 0px)); right:10px; z-index:2147483001;
     background:#b00020 !important; color:#fff !important; border:2px solid #fff !important;
     border-radius:999px; font:900 13px -apple-system,system-ui,sans-serif;
     padding:10px 14px; min-height:44px; box-shadow:0 6px 20px rgba(0,0,0,.45); cursor:pointer;
   }
 </style>
-<link rel="icon" href="data:," />
+<link rel="icon" type="image/png" sizes="512x512" href="assets/icon-512.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png" />
 <title>Rush Hour 3D</title>
 <style>
   :root{
@@ -286,8 +305,14 @@ if(document.addEventListener) document.addEventListener('DOMContentLoaded',wire)
     backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
   }
   /* ---------- top HUD ---------- */
+  /* Safe-area insets: in an installed PWA the status bar is
+     black-translucent (see the Apple meta tags in <head>), so the
+     page draws under it — every top/bottom-anchored chrome element
+     adds env(safe-area-inset-*) to its offset so nothing hides
+     under the status bar or home indicator. In a normal browser
+     tab the insets are 0 and the layout is exactly as before. */
   #hud-top{
-    position:fixed; top:10px; left:10px; right:10px; z-index:20;
+    position:fixed; top:calc(10px + env(safe-area-inset-top, 0px)); left:10px; right:10px; z-index:20;
     display:flex; gap:10px; align-items:stretch; justify-content:center;
     pointer-events:none; flex-wrap:wrap;
   }
@@ -346,7 +371,7 @@ if(document.addEventListener) document.addEventListener('DOMContentLoaded',wire)
 
   /* ---------- bottom bar ---------- */
   #hud-bottom{
-    position:fixed; left:10px; right:10px; bottom:10px; z-index:20;
+    position:fixed; left:10px; right:10px; bottom:calc(10px + env(safe-area-inset-bottom, 0px)); z-index:20;
     display:flex; gap:10px; align-items:flex-end; justify-content:center; flex-wrap:wrap;
     pointer-events:none;
   }
@@ -379,7 +404,7 @@ if(document.addEventListener) document.addEventListener('DOMContentLoaded',wire)
   .menu-status{display:flex; gap:16px; align-items:flex-start; justify-content:space-between; padding-bottom:2px;}
   .menu-mode-row{display:flex; align-items:center; gap:12px;}
   #menu-panel{
-    position:fixed; right:10px; bottom:74px; z-index:35;
+    position:fixed; right:10px; bottom:calc(74px + env(safe-area-inset-bottom, 0px)); z-index:35;
     width:min(350px, calc(100vw - 20px)); max-height:calc(100dvh - 160px); overflow:auto;
     padding:14px 14px 10px; border-radius:16px;
   }
@@ -419,14 +444,14 @@ if(document.addEventListener) document.addEventListener('DOMContentLoaded',wire)
   /* ---------- 2D fallback ---------- */
   #board2d{position:fixed; inset:0; display:none; touch-action:none;}
   #mode-banner{
-    display:none; position:fixed; top:82px; left:50%; transform:translateX(-50%); z-index:25;
+    display:none; position:fixed; top:calc(82px + env(safe-area-inset-top, 0px)); left:50%; transform:translateX(-50%); z-index:25;
     background:#7a4a00; color:#fff; border:1px solid rgba(255,255,255,.35);
     border-radius:999px; padding:8px 16px; font-weight:800; font-size:13.5px;
     box-shadow:0 6px 20px rgba(0,0,0,.35); max-width:94vw; text-align:center; line-height:1.35;
   }
   #mode-banner .tip{display:block; font-weight:700; font-size:12px; color:#ffe1a8;}
   #toast{
-    position:fixed; top:86px; left:50%; transform:translateX(-50%) translateY(-8px); z-index:30;
+    position:fixed; top:calc(86px + env(safe-area-inset-top, 0px)); left:50%; transform:translateX(-50%) translateY(-8px); z-index:30;
     padding:9px 18px; border-radius:999px; font-weight:900; font-size:14.5px;
     opacity:0; pointer-events:none; transition:opacity .25s, transform .25s; white-space:nowrap;
     max-width:92vw; overflow:hidden; text-overflow:ellipsis;
@@ -473,18 +498,18 @@ if(document.addEventListener) document.addEventListener('DOMContentLoaded',wire)
   @media (max-width:640px){
     .hud-value{font-size:16px;}
     #level-name{max-width:44vw;}
-    #hud-top{gap:6px; top:6px; left:6px; right:6px;}
-    #hud-bottom{gap:6px; bottom:6px; left:6px; right:6px;}
+    #hud-top{gap:6px; top:calc(6px + env(safe-area-inset-top, 0px)); left:6px; right:6px;}
+    #hud-bottom{gap:6px; bottom:calc(6px + env(safe-area-inset-bottom, 0px)); left:6px; right:6px;}
     .hud-box{padding:6px 9px;}
     #info-bar{padding:6px 12px;}
     #info-stack{max-width:calc(100vw - 12px);}
     #info-bar .info-line1{font-size:14px;}
     #info-bar .info-line2{font-size:12.5px;}
     #info-bar #level-name{max-width:58vw;}
-    #toast{top:120px;}
+    #toast{top:calc(120px + env(safe-area-inset-top, 0px));}
     button{font-size:12.5px; padding:7px 10px;}
     /* menu becomes a bottom sheet spanning the screen width */
-    #menu-panel{left:6px; right:6px; width:auto; bottom:64px; max-height:calc(100dvh - 150px);}
+    #menu-panel{left:6px; right:6px; width:auto; bottom:calc(64px + env(safe-area-inset-bottom, 0px)); max-height:calc(100dvh - 150px);}
     .level-list{max-height:30dvh;}
     /* player chips shrink so the turn display fits a phone row */
     .p-chip{font-size:12px; padding:5px 8px 5px 6px; min-height:32px;}
@@ -582,7 +607,7 @@ if(document.addEventListener) document.addEventListener('DOMContentLoaded',wire)
     <button id="btn-sound" class="icon-btn" title="Sound on/off" aria-label="Toggle sound"><span class="btn-ico" aria-hidden="true">🔊</span><span class="btn-label">Sound</span></button>
     <button id="btn-herohl" class="icon-btn" title="Hero glow on/off" aria-label="Toggle hero glow" aria-pressed="true"><span class="btn-ico" aria-hidden="true">💚</span><span class="btn-label">Hero glow</span></button>
   </div>
-  <div class="build-marker">Rush Hour 3D · v13 · updated 2026-11-25</div>
+  <div class="build-marker">Rush Hour 3D · v14 · updated 2026-11-26</div>
 </div>
 <script>
 /* Secondary menu open/close — plain DOM, independent of which
