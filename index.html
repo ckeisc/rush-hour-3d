@@ -301,7 +301,16 @@ if(document.addEventListener) document.addEventListener('DOMContentLoaded',wire)
   /* two-line level info bar — always visible at the top of the
      screen, in bright playful colors: line 1 is the level number
      & name, line 2 is par and the current move count */
-  #info-bar{flex-direction:column; align-items:center; gap:2px; padding:7px 16px; max-width:calc(100vw - 20px); overflow:hidden;}
+  /* The info bar's plate look (translucent fill + backdrop blur)
+     lives ONLY on .topbar-bg, a background-only layer that holds no
+     text. The title text renders in the sibling .topbar-content
+     layer with no backdrop-filter, no mask and full opacity.
+     Keeping the blur on the same element as the text made iOS
+     Safari rasterize the glyphs without subpixel antialiasing,
+     which read as a blurry title (worse as a PWA). */
+  #info-bar{position:relative; isolation:isolate; flex-direction:column; align-items:center; gap:2px; padding:7px 16px; max-width:calc(100vw - 20px); overflow:hidden; background:transparent; border:1px solid transparent; box-shadow:none; backdrop-filter:none; -webkit-backdrop-filter:none;}
+  #info-bar .topbar-bg{position:absolute; inset:0; z-index:0; border-radius:14px; background:var(--plate); border:1px solid var(--plate-line); box-shadow:var(--shadow); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); pointer-events:none;}
+  #info-bar .topbar-content{position:relative; z-index:1; display:flex; flex-direction:column; align-items:center; gap:2px; opacity:1; mask:none; -webkit-mask:none; filter:none; backdrop-filter:none; -webkit-backdrop-filter:none; -webkit-font-smoothing:subpixel-antialiased; text-rendering:optimizeLegibility;}
   #info-bar .info-line{display:flex; align-items:baseline; gap:7px; white-space:nowrap; line-height:1.25;}
   #info-bar .info-line1{font-size:15.5px; font-weight:900;}
   #info-bar .info-line2{font-size:13.5px; font-weight:800;}
@@ -493,17 +502,20 @@ if(document.addEventListener) document.addEventListener('DOMContentLoaded',wire)
      is the level number & name, line 2 is par and the move count.
      Below/beside it, the turn indicator. -->
 <div id="hud-top">
-  <div class="plate hud-box" id="info-bar" aria-label="Level info">
-    <div class="info-line info-line1">
-      <span id="diff-dot" title="Difficulty: Beginner"></span>
-      <span class="info-level">Level <span id="level-num">1</span>/20</span>
-      <span class="info-sep" aria-hidden="true">·</span>
-      <span id="level-name">First Drive</span>
-    </div>
-    <div class="info-line info-line2">
-      <span class="info-par">Par <span id="par-num">2</span></span>
-      <span class="info-sep" aria-hidden="true">·</span>
-      <span class="info-moves">Moves <span class="stat-num" id="moves-num">0</span></span>
+  <div class="hud-box" id="info-bar" aria-label="Level info">
+    <div class="topbar-bg" aria-hidden="true"></div>
+    <div class="topbar-content">
+      <div class="info-line info-line1">
+        <span id="diff-dot" title="Difficulty: Beginner"></span>
+        <span class="info-level">Level <span id="level-num">1</span>/20</span>
+        <span class="info-sep" aria-hidden="true">·</span>
+        <span id="level-name">First Drive</span>
+      </div>
+      <div class="info-line info-line2">
+        <span class="info-par">Par <span id="par-num">2</span></span>
+        <span class="info-sep" aria-hidden="true">·</span>
+        <span class="info-moves">Moves <span class="stat-num" id="moves-num">0</span></span>
+      </div>
     </div>
   </div>
   <div class="plate hud-box" id="players-box" aria-label="Players"></div>
