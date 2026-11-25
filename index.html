@@ -80,7 +80,7 @@ function shaderInfo(){
 }
 function fullText(){
   var si=shaderInfo();
-  return 'RUSH HOUR 3D v14 — ERROR REPORT\nReported at: '+(new Date()).toString()+'\n'
+  return 'RUSH HOUR 3D v15 — ERROR REPORT\nReported at: '+(new Date()).toString()+'\n'
     +deviceInfo()+(si?'\n'+si:'')+'\n\n--- Errors ('+COUNT+') ---\n'
     +(QUEUE.length?QUEUE.join('\n\n'):'(none captured)');
 }
@@ -607,7 +607,7 @@ if(document.addEventListener) document.addEventListener('DOMContentLoaded',wire)
     <button id="btn-sound" class="icon-btn" title="Sound on/off" aria-label="Toggle sound"><span class="btn-ico" aria-hidden="true">🔊</span><span class="btn-label">Sound</span></button>
     <button id="btn-herohl" class="icon-btn" title="Hero glow on/off" aria-label="Toggle hero glow" aria-pressed="true"><span class="btn-ico" aria-hidden="true">💚</span><span class="btn-label">Hero glow</span></button>
   </div>
-  <div class="build-marker">Rush Hour 3D · v14 · updated 2026-11-26</div>
+  <div class="build-marker">Rush Hour 3D · v15 · updated 2026-11-26</div>
 </div>
 <script>
 /* Secondary menu open/close — plain DOM, independent of which
