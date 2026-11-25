@@ -80,7 +80,7 @@ function shaderInfo(){
 }
 function fullText(){
   var si=shaderInfo();
-  return 'RUSH HOUR 3D v15 — ERROR REPORT\nReported at: '+(new Date()).toString()+'\n'
+  return 'RUSH HOUR 3D v16 — ERROR REPORT\nReported at: '+(new Date()).toString()+'\n'
     +deviceInfo()+(si?'\n'+si:'')+'\n\n--- Errors ('+COUNT+') ---\n'
     +(QUEUE.length?QUEUE.join('\n\n'):'(none captured)');
 }
@@ -326,23 +326,32 @@ if(document.addEventListener) document.addEventListener('DOMContentLoaded',wire)
   /* two-line level info bar — always visible at the top of the
      screen, in bright playful colors: line 1 is the level number
      & name, line 2 is par and the current move count */
-  /* The info bar's plate look (translucent fill + backdrop blur)
-     lives ONLY on .topbar-bg, a background-only layer that holds no
-     text. v12: that layer is no longer a CHILD of #info-bar — iOS
-     Safari flattens a parent together with a backdrop-filtered
-     child into one compositing layer and rasterizes the title
-     glyphs inside it without subpixel antialiasing (blurry title,
-     worse as a PWA, cured only when a menu forced a re-composite).
-     .topbar-bg is now a SIBLING of #info-bar, stacked in the same
-     #info-stack grid cell behind it, and #info-bar itself carries
-     no backdrop-filter, no mask, no filter, no text-shadow, no
-     overflow clip — the title text renders at full opacity in its
-     own isolated layer. A one-time forced re-raster after boot
-     (see the script after the menu panel) clears the stale
-     boot-time raster. */
+  /* The info bar's plate look lives ONLY on .topbar-bg, a
+     background-only layer that holds no text. Root cause of the
+     blurry top bar: the plate used to be a translucent fill +
+     backdrop-filter blur, and iOS Safari flattened it together
+     with the title into one compositing layer, rasterizing the
+     glyphs without subpixel antialiasing (blurry title, worse as
+     a PWA, cured only when a menu forced a re-composite). v12
+     moved the layer out of #info-bar into a sibling grid cell —
+     not enough: it was still inside the top bar's own subtree.
+     v16 removes the mechanism entirely: .topbar-bg is a direct
+     child of <body> (a sibling of #hud-top, NOT inside it),
+     painted with the OPAQUE --plate-solid fill and NO
+     backdrop-filter anywhere in the top bar; a small script
+     keeps its fixed box glued to #info-bar's rect. #info-bar
+     itself carries no backdrop-filter, no mask, no filter, no
+     text-shadow, no overflow clip — the title text renders at
+     full opacity in its own isolated layer. A forced re-raster
+     after the first rendered frame (see the script after the
+     menu panel) clears the stale boot-time raster. */
   #info-stack{display:grid; flex:none; max-width:calc(100vw - 20px);}
   #info-stack > *{grid-area:1/1;}
-  .topbar-bg{border-radius:14px; background:var(--plate); border:1px solid var(--plate-line); box-shadow:var(--shadow); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); pointer-events:none;}
+  .topbar-bg{position:fixed; left:0; top:0; width:0; height:0; z-index:19; border-radius:14px; background:var(--plate-solid); border:1px solid var(--plate-line); box-shadow:var(--shadow); pointer-events:none;}
+  /* The turn-indicator box sits in the same top bar, and its
+     chips' text used to sit directly inside the backdrop-filtered
+     .plate. v16: solid fill, no backdrop blur — same reasoning. */
+  #players-box{background:var(--plate-solid); backdrop-filter:none; -webkit-backdrop-filter:none;}
   #info-bar{position:relative; isolation:isolate; z-index:1; flex-direction:column; align-items:center; gap:2px; padding:7px 16px; background:transparent; border:1px solid transparent; box-shadow:none; backdrop-filter:none; -webkit-backdrop-filter:none;}
   #info-bar .topbar-content{position:relative; display:flex; flex-direction:column; align-items:center; gap:2px; opacity:1; mask:none; -webkit-mask:none; filter:none; backdrop-filter:none; -webkit-backdrop-filter:none; text-shadow:none; -webkit-font-smoothing:subpixel-antialiased; text-rendering:optimizeLegibility;}
   #info-bar .info-line{display:flex; align-items:baseline; gap:7px; white-space:nowrap; line-height:1.25;}
@@ -540,9 +549,13 @@ if(document.addEventListener) document.addEventListener('DOMContentLoaded',wire)
 <!-- TOP HUD — two lines of basic info in bright colors: line 1
      is the level number & name, line 2 is par and the move count.
      Below/beside it, the turn indicator. -->
+<!-- v16: the info bar's plate background lives OUTSIDE #hud-top
+     entirely (direct child of body), solid fill, no backdrop-filter
+     — see the .topbar-bg CSS note. A script keeps it glued to
+     #info-bar's rect. -->
+<div class="topbar-bg" id="topbar-bg" aria-hidden="true"></div>
 <div id="hud-top">
   <div id="info-stack">
-    <div class="topbar-bg" aria-hidden="true"></div>
     <div class="hud-box" id="info-bar" aria-label="Level info">
     <div class="topbar-content">
       <div class="info-line info-line1">
@@ -607,7 +620,7 @@ if(document.addEventListener) document.addEventListener('DOMContentLoaded',wire)
     <button id="btn-sound" class="icon-btn" title="Sound on/off" aria-label="Toggle sound"><span class="btn-ico" aria-hidden="true">🔊</span><span class="btn-label">Sound</span></button>
     <button id="btn-herohl" class="icon-btn" title="Hero glow on/off" aria-label="Toggle hero glow" aria-pressed="true"><span class="btn-ico" aria-hidden="true">💚</span><span class="btn-label">Hero glow</span></button>
   </div>
-  <div class="build-marker">Rush Hour 3D · v15 · updated 2026-11-26</div>
+  <div class="build-marker">Rush Hour 3D · v16 · updated 2026-11-26</div>
 </div>
 <script>
 /* Secondary menu open/close — plain DOM, independent of which
@@ -635,17 +648,39 @@ if(document.addEventListener) document.addEventListener('DOMContentLoaded',wire)
 })();
 </script>
 <script>
-/* v12 — force one clean re-raster of the top-bar title after boot.
-   iOS Safari rasterizes the title once at load (while WebGL is
-   starting) and caches that bitmap; it stayed soft until opening
-   the ☰ menu forced a full-page re-composite. This reproduces
-   that re-composite at load: a throwaway translateZ(0) + forced
-   reflow across two frames, then removed so the title settles in
-   its normal layer, re-rasterized sharp at full opacity. Runs
-   once on load and once after the boot status pill lifts. */
+/* v16 — top-bar plate placement + one clean re-raster of the
+   title after the first REAL frame. Two jobs:
+   1) .topbar-bg now lives outside #hud-top (direct child of
+      body, solid --plate-solid fill, no backdrop-filter — see
+      the CSS note), so this script keeps its fixed box glued to
+      #info-bar's rect: on boot, on window resize/orientation
+      change, and whenever #info-bar itself changes size
+      (ResizeObserver — level names differ in length, and the
+      HUD can re-wrap on narrow screens).
+   2) iOS Safari rasterizes the title once at load (while WebGL
+      is starting) and caches that bitmap; it stayed soft until
+      opening the ☰ menu forced a full-page re-composite. The
+      old v12 timer guessed 1600 ms; v16 fires off signals that
+      mean a frame really rendered: the game calls
+      window.__rhTitleReraster() right after its first
+      successful render (the 3D animate loop, or the first 2D
+      draw), and this script also re-fires ~500 ms after window
+      load as a backstop. Each fire toggles a throwaway
+      translateZ(0) + forced reflow across two frames, then
+      removes it so the title settles in its normal layer,
+      re-rasterized sharp at full opacity. */
 (function(){
+  var bg=document.getElementById('topbar-bg');
+  var bar=document.getElementById('info-bar');
   var el=null;
+  function syncBg(){
+    if(!bg||!bar) return;
+    var r=bar.getBoundingClientRect();
+    bg.style.left=r.left+'px'; bg.style.top=r.top+'px';
+    bg.style.width=r.width+'px'; bg.style.height=r.height+'px';
+  }
   function reraster(){
+    syncBg();
     el=el||document.querySelector('#info-bar .topbar-content');
     if(!el) return;
     el.style.transform='translateZ(0)';
@@ -653,11 +688,16 @@ if(document.addEventListener) document.addEventListener('DOMContentLoaded',wire)
     requestAnimationFrame(function(){ requestAnimationFrame(function(){
       el.style.transform='';
       void el.offsetHeight;
+      syncBg();
     });});
   }
-  if(document.readyState==='complete') reraster();
-  else window.addEventListener('load', reraster);
-  setTimeout(reraster, 1600);
+  window.__rhTitleReraster=reraster;
+  syncBg();
+  if(window.ResizeObserver&&bar){ try{ new ResizeObserver(syncBg).observe(bar); }catch(e){} }
+  window.addEventListener('resize', syncBg);
+  window.addEventListener('orientationchange', function(){ setTimeout(syncBg,60); });
+  if(document.readyState==='complete'){ reraster(); setTimeout(reraster,500); }
+  else window.addEventListener('load', function(){ reraster(); setTimeout(reraster,500); });
 })();
 </script>
 
@@ -1716,6 +1756,7 @@ window.__rhStart2D=function(reason){
     loadLevel2(state.level||0);
   }
   draw2();
+  if(window.__rhTitleReraster) window.__rhTitleReraster();
   setTimeout(function(){ toast2('2D mode — drag the cars to free the '+carDisplayName(state.cars[0].t)+'! 🚗'); }, 500);
 };
 
@@ -2896,7 +2937,7 @@ function animate(){
       cl.position.addScaledVector(camUpG, -(_vTop.y-0.78)*depthG*tanHG);
     });
     renderer.render(scene,camera);
-    if(!diagReadySent){ diagReadySent=true; if(window.__diagReady) window.__diagReady(); }
+    if(!diagReadySent){ diagReadySent=true; if(window.__diagReady) window.__diagReady(); if(window.__rhTitleReraster) window.__rhTitleReraster(); }
   }catch(err){
     if(!diagReadySent){
       /* No frame has ever rendered: this is the shader-creation
